@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram import F
 
 import data.quiz_data as quiz_data
-import button_start
+#import button_start
 import generate_options_keyboard
 
 # Включаем логирование, чтобы не пропустить важные сообщения
