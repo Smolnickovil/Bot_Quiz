@@ -24,6 +24,7 @@ dp = Dispatcher()
 
 # Зададим имя базы данных
 DB_NAME = 'quiz_bot.db'
+#DICT_DATA = 'data/quiz_data.json'
 
 quiz_data = quiz_data.quiz_data
 
@@ -55,15 +56,18 @@ async def right_answer(callback: types.CallbackQuery):
 
     await callback.message.answer("Верно!")
     current_question_index = await get_quiz_index(callback.from_user.id)
+    current_score = await get_user_score(callback.from_user.id)
     # Обновление номера текущего вопроса в базе данных
     current_question_index += 1
+    current_score += 1
     await update_quiz_index(callback.from_user.id, current_question_index)
+    await update_user_score(callback.from_user.id, current_score)
 
 
     if current_question_index < len(quiz_data):
         await get_question(callback.message, callback.from_user.id)
     else:
-        await callback.message.answer("Это был последний вопрос. Квиз завершен!")
+        await callback.message.answer(f"Это был последний вопрос. Квиз завершен!\n Ваш результат: {current_score} правильных ответов")
 
 
 @dp.callback_query(F.data == "wrong_answer")
@@ -76,6 +80,7 @@ async def wrong_answer(callback: types.CallbackQuery):
 
     # Получение текущего вопроса из словаря состояний пользователя
     current_question_index = await get_quiz_index(callback.from_user.id)
+    current_score = await get_user_score(callback.from_user.id)
     correct_option = quiz_data[current_question_index]['correct_option']
 
     await callback.message.answer(f"Неправильно. Правильный ответ: {quiz_data[current_question_index]['options'][correct_option]}")
@@ -83,6 +88,8 @@ async def wrong_answer(callback: types.CallbackQuery):
     # Обновление номера текущего вопроса в базе данных
     current_question_index += 1
     await update_quiz_index(callback.from_user.id, current_question_index)
+    await update_user_score(callback.from_user.id, current_score)
+
 
 
     if current_question_index < len(quiz_data):
@@ -112,7 +119,9 @@ async def get_question(message, user_id):
 async def new_quiz(message):
     user_id = message.from_user.id
     current_question_index = 0
+    new_score = 0
     await update_quiz_index(user_id, current_question_index)
+    await update_user_score(user_id, new_score)
     await get_question(message, user_id)
 
 
@@ -127,6 +136,15 @@ async def get_quiz_index(user_id):
                 return results[0]
             else:
                 return 0
+            
+async def get_user_score(user_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute('SELECT score FROM users WHERE user_id = (?)', (user_id,)) as cursor:
+            results = await cursor.fetchone()
+            if results is not None:
+                return results[0]
+            else:
+                return 0
 
 
 async def update_quiz_index(user_id, index):
@@ -135,6 +153,11 @@ async def update_quiz_index(user_id, index):
         # Вставляем новую запись или заменяем ее, если с данным user_id уже существует
         await db.execute('INSERT OR REPLACE INTO quiz_state (user_id, question_index) VALUES (?, ?)', (user_id, index))
         # Сохраняем изменения
+        await db.commit()
+
+async def update_user_score(user_id, new_score):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('INSERT INTO users (user_id, score) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET score = excluded.score', (user_id, new_score))
         await db.commit()
 
 
@@ -153,19 +176,9 @@ async def create_table():
     async with aiosqlite.connect(DB_NAME) as db:
         # Создаем таблицу
         await db.execute('''CREATE TABLE IF NOT EXISTS quiz_state (user_id INTEGER PRIMARY KEY, question_index INTEGER)''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, score INTEGER)''')
         # Сохраняем изменения
         await db.commit()
-
-
-
-async def create_table():
-    # Создаем соединение с базой данных (если она не существует, она будет создана)
-    async with aiosqlite.connect(DB_NAME) as db:
-        # Создаем таблицу
-        await db.execute('''CREATE TABLE IF NOT EXISTS quiz_state (user_id INTEGER PRIMARY KEY, question_index INTEGER)''')
-        # Сохраняем изменения
-        await db.commit()
-
 
 
 # Запуск процесса поллинга новых апдейтов
