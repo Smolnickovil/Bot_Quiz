@@ -85,7 +85,6 @@ async def wrong_answer(callback: types.CallbackQuery):
 
     await callback.message.answer(f"Неправильно. Правильный ответ: {quiz_data[current_question_index]['options'][correct_option]}")
 
-    # Обновление номера текущего вопроса в базе данных
     current_question_index += 1
     await update_quiz_index(callback.from_user.id, current_question_index)
     await update_user_score(callback.from_user.id, current_score)
@@ -123,7 +122,6 @@ async def new_quiz(message):
     await update_quiz_index(user_id, current_question_index)
     await update_user_score(user_id, new_score)
     await get_question(message, user_id)
-
 
 async def get_quiz_index(user_id):
      # Подключаемся к базе данных
