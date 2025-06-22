@@ -67,7 +67,7 @@ async def right_answer(callback: types.CallbackQuery):
     if current_question_index < len(quiz_data):
         await get_question(callback.message, callback.from_user.id)
     else:
-        await callback.message.answer(f"Это был последний вопрос. Квиз завершен!\n Ваш результат: {current_score} правильных ответов")
+        await callback.message.answer(f"Это был последний вопрос. Квиз завершен!\n Ваш результат: {current_score} правильных ответов ")
 
 
 @dp.callback_query(F.data == "wrong_answer")
